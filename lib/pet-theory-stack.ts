@@ -4,6 +4,7 @@ import * as lambda from "@aws-cdk/aws-lambda";
 import * as events from "@aws-cdk/aws-events";
 import * as targets from "@aws-cdk/aws-events-targets";
 import * as iam from "@aws-cdk/aws-iam";
+import * as sqs from "@aws-cdk/aws-sqs";
 
 export class PetTheoryStack extends cdk.Stack {
   constructor(scope: cdk.Construct, id: string, props?: cdk.StackProps) {
@@ -74,6 +75,15 @@ export class PetTheoryStack extends cdk.Stack {
       })
     );
 
+    //a dead letter queue to record events that get failed to be processed with eventbridge due to server side or client side error
+    const notificationServiceDlq = new sqs.Queue(
+      this,
+      `${id}_notification_service_dlq`,
+      {
+        queueName: `${id}_notification_service_dlq`,
+      }
+    );
+
     const emailServiceRule = new events.Rule(this, `${id}_email_service_rule`, {
       ruleName: `${id}_email_service_rule`,
       eventPattern: {
@@ -81,7 +91,15 @@ export class PetTheoryStack extends cdk.Stack {
         detailType: [eventTypeEmailNotification],
       },
       eventBus: bus,
-      targets: [new targets.LambdaFunction(emailServiceLambda)],
+      targets: [
+        new targets.LambdaFunction(emailServiceLambda, {
+          // apart from dlq we have an exponential backoff retry mechanism, we will keep it short and let the failed events processed later from dlq
+          maxEventAge: cdk.Duration.hours(2),
+          retryAttempts: 2,
+          //a lambda can be added as a target to dql to resend failed events back to eventbridge to be processed
+          deadLetterQueue: notificationServiceDlq, // dead letter queue to store failed events
+        }),
+      ],
     });
 
     const smsServiceLambda = new lambda.Function(
@@ -98,6 +116,14 @@ export class PetTheoryStack extends cdk.Stack {
       }
     );
 
+    smsServiceLambda.addToRolePolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["sns:Publish"],
+        resources: ["*"],
+      })
+    );
+
     const smsServiceRule = new events.Rule(this, `${id}_sms_service_rule`, {
       ruleName: `${id}_sms_service_rule`,
       eventPattern: {
@@ -105,7 +131,13 @@ export class PetTheoryStack extends cdk.Stack {
         detailType: [eventTypeSmsNotification],
       },
       eventBus: bus,
-      targets: [new targets.LambdaFunction(smsServiceLambda)],
+      targets: [
+        new targets.LambdaFunction(smsServiceLambda, {
+          maxEventAge: cdk.Duration.hours(2),
+          retryAttempts: 2,
+          deadLetterQueue: notificationServiceDlq, // dead letter queue to store failed events
+        }),
+      ],
     });
   }
 }

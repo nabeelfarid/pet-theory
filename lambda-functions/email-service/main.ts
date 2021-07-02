@@ -48,7 +48,7 @@ export const handler: EventBridgeHandler<string, EventDetails, void> = async (
 
     console.log("Email sent! Message ID: ", data.MessageId);
   } catch (error) {
-    console.log(error.message);
+    console.log("Error sending email:", JSON.stringify(error, null, 2));
     throw error;
   }
 };
