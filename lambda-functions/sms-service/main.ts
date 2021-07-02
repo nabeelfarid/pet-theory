@@ -16,23 +16,20 @@ export const handler: EventBridgeHandler<string, EventDetails, void> = async (
   var params: AWS.SNS.PublishInput = {
     Message: `Your PET Theory report# ${event.detail.reportId} is ready` /* required */,
     PhoneNumber: event.detail.mobile,
-    // MessageAttributes: {
-    //   "<String>": {
-    //     DataType: "STRING_VALUE" /* required */,
-    //     StringValue: "STRING_VALUE",
-    //   },
-    //   /* '<String>': ... */
-    // },
-    // MessageDeduplicationId: "STRING_VALUE",
-    // MessageGroupId: "STRING_VALUE",
-    // MessageStructure: "STRING_VALUE",
-    // Subject: "STRING_VALUE",
-    // TargetArn: "STRING_VALUE",
-    // TopicArn: "STRING_VALUE",
+    MessageAttributes: {
+      "AWS.SNS.SMS.SenderID": {
+        DataType: "String",
+        StringValue: "PetTheory",
+      },
+      "WS.MM.SMS.OriginationNumber": {
+        DataType: "String",
+        StringValue: "a_verified_number_from_sns_sandbox",
+      },
+    },
   };
   try {
     const data = await sns.publish(params).promise();
-    console.log("SMS sent! Message ID: ", data.MessageId);
+    console.log("SMS sent! Message ID: ", JSON.stringify(data, null, 2));
   } catch (error) {
     console.log("Error sending sms:", JSON.stringify(error, null, 2));
   }
