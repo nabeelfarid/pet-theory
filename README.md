@@ -1,3 +1,16 @@
+API Gateway: https://e0eqrhvclj.execute-api.us-east-2.amazonaws.com/prod/
+
+sample post request
+
+```shell
+{
+  "name": "your name",
+  "email": "your verified email",
+  "mobile": "your phone number with country code",
+  "reportId": "1234"
+}
+```
+
 # Welcome to your CDK TypeScript project!
 
 This is a blank project for TypeScript development with CDK.
